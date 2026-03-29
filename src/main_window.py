@@ -7,7 +7,7 @@ from .control_panel import ControlPanel
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Stewart Platform Simulator v0.3")
+        self.setWindowTitle("Stewart Platform Simulator v0.4")
         self.setMinimumSize(1000, 600)
 
         central_widget = QWidget()

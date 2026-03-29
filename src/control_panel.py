@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 import math
+import numpy as np
 
 
 class ControlPanel(QWidget):
@@ -12,6 +13,8 @@ class ControlPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.sliders = {}
+        self.alpha_labels = []
+        self.rotation_labels = []
         self._init_ui()
 
     def _init_ui(self):
@@ -36,10 +39,62 @@ class ControlPanel(QWidget):
 
         layout.addWidget(rotation_group)
 
-        line = QFrame()
-        line.setFrameShape(QFrame.Shape.HLine)
-        line.setFrameShadow(QFrame.Shadow.Sunken)
-        layout.addWidget(line)
+        line1 = QFrame()
+        line1.setFrameShape(QFrame.Shape.HLine)
+        line1.setFrameShadow(QFrame.Shadow.Sunken)
+        layout.addWidget(line1)
+
+        feedback_group = QGroupBox("Feedback")
+        feedback_layout = QVBoxLayout(feedback_group)
+
+        alpha_group = QGroupBox("Servo Angles (°)")
+        alpha_layout = QVBoxLayout(alpha_group)
+        alpha_layout.setSpacing(2)
+        
+        for i in range(6):
+            row_layout = QHBoxLayout()
+            label = QLabel(f"α{i}:")
+            label.setMinimumWidth(25)
+            row_layout.addWidget(label)
+            
+            value_label = QLabel("0.00")
+            value_label.setMinimumWidth(50)
+            value_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            row_layout.addWidget(value_label)
+            row_layout.addStretch()
+            
+            self.alpha_labels.append(value_label)
+            alpha_layout.addLayout(row_layout)
+        
+        feedback_layout.addWidget(alpha_group)
+
+        orientation_group = QGroupBox("Orientation (°)")
+        orientation_layout = QVBoxLayout(orientation_group)
+        orientation_layout.setSpacing(2)
+        
+        for axis in ["Roll", "Pitch", "Yaw"]:
+            row_layout = QHBoxLayout()
+            label = QLabel(f"{axis}:")
+            label.setMinimumWidth(40)
+            row_layout.addWidget(label)
+            
+            value_label = QLabel("0.00")
+            value_label.setMinimumWidth(50)
+            value_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            row_layout.addWidget(value_label)
+            row_layout.addStretch()
+            
+            self.rotation_labels.append(value_label)
+            orientation_layout.addLayout(row_layout)
+        
+        feedback_layout.addWidget(orientation_group)
+
+        layout.addWidget(feedback_group)
+
+        line2 = QFrame()
+        line2.setFrameShape(QFrame.Shape.HLine)
+        line2.setFrameShadow(QFrame.Shadow.Sunken)
+        layout.addWidget(line2)
 
         reset_btn = QPushButton("Reset")
         reset_btn.clicked.connect(self._on_reset)
@@ -55,7 +110,7 @@ class ControlPanel(QWidget):
         row_layout.setContentsMargins(0, 0, 0, 0)
 
         label = QLabel(label_text)
-        label.setMinimumWidth(50)
+        label.setMinimumWidth(60)
         row_layout.addWidget(label)
 
         slider = QSlider(Qt.Orientation.Horizontal)
@@ -107,3 +162,16 @@ class ControlPanel(QWidget):
             self.sliders['rot_y'].setValue(int(math.degrees(pose['rot_y']) * 10))
         if 'rot_z' in pose:
             self.sliders['rot_z'].setValue(int(math.degrees(pose['rot_z']) * 10))
+
+    def update_feedback(self, alpha_angles, rotation):
+        for i, alpha in enumerate(alpha_angles):
+            if np.isnan(alpha):
+                self.alpha_labels[i].setText("N/A")
+            else:
+                self.alpha_labels[i].setText(f"{math.degrees(alpha):.2f}")
+        
+        for i, rot in enumerate(rotation):
+            if np.isnan(rot):
+                self.rotation_labels[i].setText("N/A")
+            else:
+                self.rotation_labels[i].setText(f"{math.degrees(rot):.2f}")

@@ -7,7 +7,7 @@ from .control_panel import ControlPanel
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Stewart Platform Simulator v0.4")
+        self.setWindowTitle("Stewart Platform Simulator v0.5")
         self.setMinimumSize(1000, 600)
 
         central_widget = QWidget()
@@ -30,7 +30,14 @@ class MainWindow(QMainWindow):
         rotation = [pose['rot_x'], pose['rot_y'], pose['rot_z']]
         self.gl_widget.platform.update_pose(translation, rotation)
         self.gl_widget.update()
+        self._update_feedback()
 
     def _on_reset(self):
         self.gl_widget.platform.update_pose([0, 0, 0], [0, 0, 0])
         self.gl_widget.update()
+        self._update_feedback()
+
+    def _update_feedback(self):
+        alpha_angles = self.gl_widget.platform.get_alpha_angles()
+        rotation = self.gl_widget.platform.get_rotation()
+        self.control_panel.update_feedback(alpha_angles, rotation)

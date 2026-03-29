@@ -12,6 +12,7 @@ class GLWidget(QOpenGLWidget):
         self.camera_distance = 400.0
         self.camera_azimuth = 45.0
         self.camera_elevation = 30.0
+        self.camera_target = [0.0, 0.0, 60.0]
         self.last_mouse_pos = None
         self.platform = StewartPlatform()
 
@@ -36,11 +37,15 @@ class GLWidget(QOpenGLWidget):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
 
-        cam_x = self.camera_distance * math.cos(math.radians(self.camera_elevation)) * math.cos(math.radians(self.camera_azimuth))
-        cam_y = self.camera_distance * math.cos(math.radians(self.camera_elevation)) * math.sin(math.radians(self.camera_azimuth))
-        cam_z = self.camera_distance * math.sin(math.radians(self.camera_elevation))
+        cam_x = self.camera_distance * math.cos(math.radians(self.camera_elevation)) * math.cos(math.radians(self.camera_azimuth)) + self.camera_target[0]
+        cam_y = self.camera_distance * math.cos(math.radians(self.camera_elevation)) * math.sin(math.radians(self.camera_azimuth)) + self.camera_target[1]
+        cam_z = self.camera_distance * math.sin(math.radians(self.camera_elevation)) + self.camera_target[2]
 
-        gluLookAt(cam_x, cam_y, cam_z, 0, 0, 60, 0, 0, 1)
+        gluLookAt(
+            cam_x, cam_y, cam_z,
+            self.camera_target[0], self.camera_target[1], self.camera_target[2],
+            0, 0, 1
+        )
 
         self.draw_axes()
         self.platform.draw()
@@ -78,6 +83,16 @@ class GLWidget(QOpenGLWidget):
                 self.camera_elevation += dy * 0.5
                 self.camera_elevation = max(-89, min(89, self.camera_elevation))
 
+            elif a0.buttons() & Qt.MouseButton.RightButton:
+                pan_speed = self.camera_distance * 0.002
+                azimuth_rad = math.radians(self.camera_azimuth)
+                
+                self.camera_target[0] -= (dx * math.cos(azimuth_rad) + dy * math.sin(azimuth_rad)) * pan_speed
+                self.camera_target[1] -= (-dx * math.sin(azimuth_rad) + dy * math.cos(azimuth_rad)) * pan_speed
+
+            elif a0.buttons() & Qt.MouseButton.MiddleButton:
+                self.camera_target[2] += dy * 0.5
+
             self.last_mouse_pos = a0.pos()
             self.update()
 
@@ -85,4 +100,11 @@ class GLWidget(QOpenGLWidget):
         delta = a0.angleDelta().y()
         self.camera_distance -= delta * 0.5
         self.camera_distance = max(100.0, min(1000.0, self.camera_distance))
+        self.update()
+
+    def reset_camera(self):
+        self.camera_distance = 400.0
+        self.camera_azimuth = 45.0
+        self.camera_elevation = 30.0
+        self.camera_target = [0.0, 0.0, 60.0]
         self.update()

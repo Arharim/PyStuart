@@ -9,6 +9,7 @@ import numpy as np
 class ControlPanel(QWidget):
     pose_changed = pyqtSignal()
     reset_requested = pyqtSignal()
+    reset_camera_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -96,9 +97,13 @@ class ControlPanel(QWidget):
         line2.setFrameShadow(QFrame.Shadow.Sunken)
         layout.addWidget(line2)
 
-        reset_btn = QPushButton("Reset")
+        reset_btn = QPushButton("Reset Pose")
         reset_btn.clicked.connect(self._on_reset)
         layout.addWidget(reset_btn)
+
+        reset_camera_btn = QPushButton("Reset Camera")
+        reset_camera_btn.clicked.connect(self._on_reset_camera)
+        layout.addWidget(reset_camera_btn)
 
         layout.addStretch()
 
@@ -138,6 +143,9 @@ class ControlPanel(QWidget):
         for slider in self.sliders.values():
             slider.setValue(0)
         self.reset_requested.emit()
+
+    def _on_reset_camera(self):
+        self.reset_camera_requested.emit()
 
     def get_pose(self):
         return {

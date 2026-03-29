@@ -6,7 +6,7 @@ from .gl_widget import GLWidget
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Stewart Platform Simulator v0.1")
+        self.setWindowTitle("Stewart Platform Simulator v0.2")
         self.setMinimumSize(800, 600)
 
         central_widget = QWidget()

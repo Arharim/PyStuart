@@ -1,3 +1,6 @@
+"""
+OpenGL 3D widget for rendering the Stewart Platform.
+"""
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from PyQt6.QtCore import Qt
 from OpenGL.GL import *
@@ -7,6 +10,16 @@ from .stewart_platform import StewartPlatform
 
 
 class GLWidget(QOpenGLWidget):
+    """
+    OpenGL widget for rendering the Stewart Platform simulation.
+    
+    Provides camera controls:
+        - Left mouse: rotate camera
+        - Right mouse: pan camera
+        - Middle mouse: vertical offset
+        - Mouse wheel: zoom
+    """
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.camera_distance = 400.0
@@ -17,13 +30,24 @@ class GLWidget(QOpenGLWidget):
         self.platform = StewartPlatform()
 
     def initializeGL(self):
-        glClearColor(0.1, 0.1, 0.15, 1.0)
+        """Initialize OpenGL settings."""
+        glClearColor(0.15, 0.15, 0.18, 1.0)
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glLineWidth(2.0)
+        
+        glEnable(GL_LIGHTING)
+        glEnable(GL_LIGHT0)
+        glEnable(GL_COLOR_MATERIAL)
+        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
+        
+        glLightfv(GL_LIGHT0, GL_POSITION, [200.0, 200.0, 400.0, 1.0])
+        glLightfv(GL_LIGHT0, GL_AMBIENT, [0.3, 0.3, 0.3, 1.0])
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, [0.8, 0.8, 0.8, 1.0])
+        glLightfv(GL_LIGHT0, GL_SPECULAR, [0.5, 0.5, 0.5, 1.0])
 
     def resizeGL(self, w, h):
+        """Handle widget resize."""
         if h == 0:
             h = 1
         glViewport(0, 0, w, h)
@@ -34,6 +58,7 @@ class GLWidget(QOpenGLWidget):
         glMatrixMode(GL_MODELVIEW)
 
     def paintGL(self):
+        """Render the scene."""
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
 
@@ -47,33 +72,39 @@ class GLWidget(QOpenGLWidget):
             0, 0, 1
         )
 
+        glDisable(GL_LIGHTING)
         self.draw_axes()
+        glEnable(GL_LIGHTING)
+        
         self.platform.draw()
 
     def draw_axes(self):
+        """Draw coordinate system axes."""
         axis_length = 40.0
 
         glLineWidth(2.0)
         glBegin(GL_LINES)
         
-        glColor3f(1.0, 0.0, 0.0)
+        glColor3f(0.9, 0.2, 0.2)
         glVertex3f(0.0, 0.0, 0.0)
         glVertex3f(axis_length, 0.0, 0.0)
 
-        glColor3f(0.0, 1.0, 0.0)
+        glColor3f(0.2, 0.9, 0.2)
         glVertex3f(0.0, 0.0, 0.0)
         glVertex3f(0.0, axis_length, 0.0)
 
-        glColor3f(0.0, 0.0, 1.0)
+        glColor3f(0.2, 0.2, 0.9)
         glVertex3f(0.0, 0.0, 0.0)
         glVertex3f(0.0, 0.0, axis_length)
 
         glEnd()
 
     def mousePressEvent(self, a0):
+        """Handle mouse press."""
         self.last_mouse_pos = a0.pos()
 
     def mouseMoveEvent(self, a0):
+        """Handle mouse movement for camera control."""
         if self.last_mouse_pos is not None:
             dx = a0.pos().x() - self.last_mouse_pos.x()
             dy = a0.pos().y() - self.last_mouse_pos.y()
@@ -97,12 +128,14 @@ class GLWidget(QOpenGLWidget):
             self.update()
 
     def wheelEvent(self, a0):
+        """Handle mouse wheel for zoom."""
         delta = a0.angleDelta().y()
         self.camera_distance -= delta * 0.5
         self.camera_distance = max(100.0, min(1000.0, self.camera_distance))
         self.update()
 
     def reset_camera(self):
+        """Reset camera to default position."""
         self.camera_distance = 400.0
         self.camera_azimuth = 45.0
         self.camera_elevation = 30.0

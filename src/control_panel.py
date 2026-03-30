@@ -17,6 +17,8 @@ class ControlPanel(QWidget):
     trajectory_pause_requested = pyqtSignal()
     trajectory_stop_requested = pyqtSignal()
     trajectory_seek_requested = pyqtSignal(int)
+    export_current_requested = pyqtSignal()
+    export_trajectory_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -96,6 +98,10 @@ class ControlPanel(QWidget):
             orientation_layout.addLayout(row_layout)
         
         feedback_layout.addWidget(orientation_group)
+
+        export_current_btn = QPushButton("Export Current Angles")
+        export_current_btn.clicked.connect(self._on_export_current)
+        feedback_layout.addWidget(export_current_btn)
 
         layout.addWidget(feedback_group)
 
@@ -203,6 +209,10 @@ class ControlPanel(QWidget):
             lambda c: self.loop_checkbox.setText(f"Loop: {'ON' if c else 'OFF'}")
         )
         traj_layout.addWidget(self.loop_checkbox)
+
+        export_traj_btn = QPushButton("Export Trajectory Angles")
+        export_traj_btn.clicked.connect(self._on_export_trajectory)
+        traj_layout.addWidget(export_traj_btn)
 
         layout.addWidget(traj_group)
 
@@ -375,3 +385,9 @@ class ControlPanel(QWidget):
 
     def is_loop_enabled(self) -> bool:
         return self.loop_checkbox.isChecked()
+
+    def _on_export_current(self):
+        self.export_current_requested.emit()
+
+    def _on_export_trajectory(self):
+        self.export_trajectory_requested.emit()

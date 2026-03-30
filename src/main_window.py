@@ -1,8 +1,10 @@
-from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QMessageBox, QScrollArea
+from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QMessageBox, QScrollArea, QFileDialog
 from PyQt6.QtCore import Qt, QTimer
 from .gl_widget import GLWidget
 from .control_panel import ControlPanel
 from .trajectory import Trajectory
+import csv
+import math
 
 
 class MainWindow(QMainWindow):
@@ -40,6 +42,8 @@ class MainWindow(QMainWindow):
         self.control_panel.trajectory_pause_requested.connect(self._on_trajectory_pause)
         self.control_panel.trajectory_stop_requested.connect(self._on_trajectory_stop)
         self.control_panel.trajectory_seek_requested.connect(self._on_trajectory_seek)
+        self.control_panel.export_current_requested.connect(self._on_export_current)
+        self.control_panel.export_trajectory_requested.connect(self._on_export_trajectory)
 
         scroll = QScrollArea()
         scroll.setWidget(self.control_panel)
@@ -152,3 +156,73 @@ class MainWindow(QMainWindow):
         self.gl_widget.platform.update_pose(translation, rotation)
         self.gl_widget.update()
         self._update_feedback()
+
+    def _on_export_current(self):
+        alpha = self.gl_widget.platform.get_alpha_angles()
+        translation = self.gl_widget.platform.get_translation()
+        rotation = self.gl_widget.platform.get_rotation()
+        filepath, _ = QFileDialog.getSaveFileName(
+            self, "Export Servo Angles", "servo_angles.csv", "CSV Files (*.csv);;All Files (*)"
+        )
+        if not filepath:
+            return
+        try:
+            with open(filepath, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    'pos_x', 'pos_y', 'pos_z',
+                    'rot_x_deg', 'rot_y_deg', 'rot_z_deg',
+                    'alpha0_deg', 'alpha1_deg', 'alpha2_deg',
+                    'alpha3_deg', 'alpha4_deg', 'alpha5_deg'
+                ])
+                row = [
+                    f"{translation[0]:.4f}", f"{translation[1]:.4f}", f"{translation[2]:.4f}",
+                    f"{math.degrees(rotation[0]):.4f}", f"{math.degrees(rotation[1]):.4f}", f"{math.degrees(rotation[2]):.4f}",
+                ]
+                for a in alpha:
+                    row.append(f"{math.degrees(a):.4f}" if not math.isnan(a) else "N/A")
+                writer.writerow(row)
+        except IOError as e:
+            QMessageBox.warning(self, "Export Error", f"Failed to write file:\n{e}")
+
+    def _on_export_trajectory(self):
+        if self.trajectory.is_empty():
+            QMessageBox.information(self, "Export", "No trajectory loaded.")
+            return
+        filepath, _ = QFileDialog.getSaveFileName(
+            self, "Export Trajectory Angles", "trajectory_angles.csv", "CSV Files (*.csv);;All Files (*)"
+        )
+        if not filepath:
+            return
+        try:
+            with open(filepath, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    'frame', 'pos_x', 'pos_y', 'pos_z',
+                    'rot_x_deg', 'rot_y_deg', 'rot_z_deg',
+                    'alpha0_deg', 'alpha1_deg', 'alpha2_deg',
+                    'alpha3_deg', 'alpha4_deg', 'alpha5_deg'
+                ])
+                total = self.trajectory.total_frames()
+                platform = self.gl_widget.platform
+                for i in range(total):
+                    pt = self.trajectory.get_frame(i)
+                    translation = [pt.pos_x, pt.pos_y, pt.pos_z]
+                    rotation = [math.radians(pt.rot_x), math.radians(pt.rot_y), math.radians(pt.rot_z)]
+                    platform.update_pose(translation, rotation)
+                    alpha = platform.get_alpha_angles()
+                    row = [i,
+                           f"{pt.pos_x:.4f}", f"{pt.pos_y:.4f}", f"{pt.pos_z:.4f}",
+                           f"{pt.rot_x:.4f}", f"{pt.rot_y:.4f}", f"{pt.rot_z:.4f}"]
+                    for a in alpha:
+                        row.append(f"{math.degrees(a):.4f}" if not math.isnan(a) else "N/A")
+                    writer.writerow(row)
+                pose = self.control_panel.get_pose()
+                platform.update_pose(
+                    [pose['pos_x'], pose['pos_y'], pose['pos_z']],
+                    [pose['rot_x'], pose['rot_y'], pose['rot_z']]
+                )
+                self.gl_widget.update()
+                self._update_feedback()
+        except IOError as e:
+            QMessageBox.warning(self, "Export Error", f"Failed to write file:\n{e}")

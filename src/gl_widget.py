@@ -28,6 +28,8 @@ class GLWidget(QOpenGLWidget):
         self.camera_target = [0.0, 0.0, 60.0]
         self.last_mouse_pos = None
         self.platform = StewartPlatform()
+        self.show_workspace = False
+        self.workspace_data = None
 
     def initializeGL(self):
         """Initialize OpenGL settings."""
@@ -77,6 +79,11 @@ class GLWidget(QOpenGLWidget):
         glEnable(GL_LIGHTING)
         
         self.platform.draw()
+
+        if self.show_workspace and self.workspace_data is not None:
+            glDisable(GL_LIGHTING)
+            self._draw_workspace()
+            glEnable(GL_LIGHTING)
 
     def draw_axes(self):
         """Draw coordinate system axes."""
@@ -133,6 +140,71 @@ class GLWidget(QOpenGLWidget):
         self.camera_distance -= delta * 0.5
         self.camera_distance = max(100.0, min(1000.0, self.camera_distance))
         self.update()
+
+    def _draw_workspace(self):
+        data = self.workspace_data
+        if data is None:
+            return
+
+        glPointSize(4.0)
+        glBegin(GL_POINTS)
+
+        if 'slice_points' in data and data['slice_points'] is not None:
+            sp = data['slice_points']
+            glColor4f(0.2, 0.8, 0.2, 0.3)
+            for pt in sp.get('valid', []):
+                glVertex3f(*pt)
+            glColor4f(0.8, 0.2, 0.2, 0.15)
+            for pt in sp.get('invalid', []):
+                glVertex3f(*pt)
+
+        glEnd()
+
+        if 'boundary_points' in data and data['boundary_points']:
+            glPointSize(5.0)
+            glBegin(GL_POINTS)
+            glColor4f(0.3, 0.7, 1.0, 0.5)
+            for pt in data['boundary_points']:
+                glVertex3f(*pt)
+            glEnd()
+
+        if 'bounds' in data and data['bounds'] is not None:
+            b = data['bounds']
+            h = StewartPlatform.INITIAL_HEIGHT
+            xn, xx = b['pos_x']
+            yn, yx = b['pos_y']
+            zn, zx = b['pos_z'][0] + h, b['pos_z'][1] + h
+            glColor4f(1.0, 1.0, 0.3, 0.25)
+            glLineWidth(1.5)
+            self._draw_wireframe_box(xn, xx, yn, yx, zn, zx)
+
+    def _draw_wireframe_box(self, xn, xx, yn, yx, zn, zx):
+        edges = [
+            (xn, yn, zn), (xx, yn, zn),
+            (xx, yx, zn), (xn, yx, zn),
+            (xn, yn, zx), (xx, yn, zx),
+            (xx, yx, zx), (xn, yx, zx),
+        ]
+        lines = [
+            (0, 1), (1, 2), (2, 3), (3, 0),
+            (4, 5), (5, 6), (6, 7), (7, 4),
+            (0, 4), (1, 5), (2, 6), (3, 7),
+        ]
+        glBegin(GL_LINES)
+        for a, b_idx in lines:
+            glVertex3f(*edges[a])
+            glVertex3f(*edges[b_idx])
+        glEnd()
+
+    def set_workspace_data(self, analyzer):
+        if analyzer is None or not analyzer.is_computed():
+            self.workspace_data = None
+            return
+        self.workspace_data = {
+            'bounds': analyzer.bounds,
+            'boundary_points': list(analyzer.boundary_points),
+            'slice_points': analyzer.slice_points,
+        }
 
     def reset_camera(self):
         """Reset camera to default position."""

@@ -19,6 +19,8 @@ class ControlPanel(QWidget):
     trajectory_seek_requested = pyqtSignal(int)
     export_current_requested = pyqtSignal()
     export_trajectory_requested = pyqtSignal()
+    workspace_toggle_requested = pyqtSignal(bool)
+    workspace_compute_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -104,6 +106,25 @@ class ControlPanel(QWidget):
         feedback_layout.addWidget(export_current_btn)
 
         layout.addWidget(feedback_group)
+
+        ws_group = QGroupBox("Workspace Boundaries")
+        ws_layout = QVBoxLayout(ws_group)
+
+        compute_ws_btn = QPushButton("Compute Workspace")
+        compute_ws_btn.clicked.connect(self._on_compute_workspace)
+        ws_layout.addWidget(compute_ws_btn)
+
+        self.ws_toggle_btn = QPushButton("Show Workspace: OFF")
+        self.ws_toggle_btn.setCheckable(True)
+        self.ws_toggle_btn.setEnabled(False)
+        self.ws_toggle_btn.toggled.connect(self._on_workspace_toggled)
+        ws_layout.addWidget(self.ws_toggle_btn)
+
+        self.ws_info_label = QLabel("Not computed")
+        self.ws_info_label.setWordWrap(True)
+        ws_layout.addWidget(self.ws_info_label)
+
+        layout.addWidget(ws_group)
 
         line2 = QFrame()
         line2.setFrameShape(QFrame.Shape.HLine)
@@ -391,3 +412,28 @@ class ControlPanel(QWidget):
 
     def _on_export_trajectory(self):
         self.export_trajectory_requested.emit()
+
+    def _on_compute_workspace(self):
+        self.workspace_compute_requested.emit()
+
+    def _on_workspace_toggled(self, checked):
+        self.ws_toggle_btn.setText(f"Show Workspace: {'ON' if checked else 'OFF'}")
+        self.workspace_toggle_requested.emit(checked)
+
+    def set_workspace_info(self, bounds):
+        if bounds is None:
+            self.ws_info_label.setText("Not computed")
+            self.ws_toggle_btn.setEnabled(False)
+            self.ws_toggle_btn.setChecked(False)
+            return
+        self.ws_info_label.setText(
+            f"Translation (mm):\n"
+            f"  X: [{bounds['pos_x'][0]:.0f}, {bounds['pos_x'][1]:.0f}]\n"
+            f"  Y: [{bounds['pos_y'][0]:.0f}, {bounds['pos_y'][1]:.0f}]\n"
+            f"  Z: [{bounds['pos_z'][0]:.0f}, {bounds['pos_z'][1]:.0f}]\n"
+            f"Rotation (deg):\n"
+            f"  R: [{bounds['rot_x'][0]:.0f}, {bounds['rot_x'][1]:.0f}]\n"
+            f"  P: [{bounds['rot_y'][0]:.0f}, {bounds['rot_y'][1]:.0f}]\n"
+            f"  W: [{bounds['rot_z'][0]:.0f}, {bounds['rot_z'][1]:.0f}]"
+        )
+        self.ws_toggle_btn.setEnabled(True)

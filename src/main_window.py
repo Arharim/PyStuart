@@ -1,8 +1,9 @@
-from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QMessageBox, QScrollArea, QFileDialog
+from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QMessageBox, QScrollArea, QFileDialog, QProgressDialog
 from PyQt6.QtCore import Qt, QTimer
 from .gl_widget import GLWidget
 from .control_panel import ControlPanel
 from .trajectory import Trajectory
+from .workspace import WorkspaceAnalyzer
 import csv
 import math
 
@@ -44,6 +45,10 @@ class MainWindow(QMainWindow):
         self.control_panel.trajectory_seek_requested.connect(self._on_trajectory_seek)
         self.control_panel.export_current_requested.connect(self._on_export_current)
         self.control_panel.export_trajectory_requested.connect(self._on_export_trajectory)
+        self.control_panel.workspace_compute_requested.connect(self._on_compute_workspace)
+        self.control_panel.workspace_toggle_requested.connect(self._on_workspace_toggle)
+
+        self._workspace_analyzer = None
 
         scroll = QScrollArea()
         scroll.setWidget(self.control_panel)
@@ -226,3 +231,28 @@ class MainWindow(QMainWindow):
                 self._update_feedback()
         except IOError as e:
             QMessageBox.warning(self, "Export Error", f"Failed to write file:\n{e}")
+
+    def _on_compute_workspace(self):
+        progress = QProgressDialog("Computing workspace boundaries...", None, 0, 0, self)
+        progress.setWindowTitle("Workspace Analysis")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setCancelButton(None)
+        progress.show()
+
+        from PyQt6.QtWidgets import QApplication
+        QApplication.processEvents()
+
+        analyzer = WorkspaceAnalyzer()
+        bounds = analyzer.compute_bounds()
+
+        progress.close()
+
+        self._workspace_analyzer = analyzer
+        self.control_panel.set_workspace_info(bounds)
+        self.gl_widget.set_workspace_data(analyzer)
+        self.gl_widget.update()
+
+    def _on_workspace_toggle(self, show: bool):
+        self.gl_widget.show_workspace = show
+        self.gl_widget.update()

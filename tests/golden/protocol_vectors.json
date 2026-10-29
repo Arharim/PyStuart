@@ -1,0 +1,141 @@
+{
+  "comment": "Golden vectors for the pystuart transport protocol (design doc section 8). CRC16-CCITT covers all bytes after the 0xAA55 sync marker.",
+  "vectors": [
+    {
+      "name": "mark_heartbeat",
+      "type_id": 4,
+      "seq": 0,
+      "ts32": 0,
+      "payload_hex": "",
+      "hex": "aa55000400000000006ff7",
+      "valid": true
+    },
+    {
+      "name": "cmd_act_enable",
+      "type_id": 6,
+      "seq": 7,
+      "ts32": 1000,
+      "payload_hex": "00080004000c0002ff0f000001",
+      "hex": "aa550d0607e803000000080004000c0002ff0f000001f2d5",
+      "valid": true,
+      "cmd_act": [
+        [
+          2048,
+          1024,
+          3072,
+          512,
+          4095,
+          0
+        ],
+        1
+      ]
+    },
+    {
+      "name": "imu_batch_two_samples",
+      "type_id": 1,
+      "seq": 1,
+      "ts32": 4812,
+      "payload_hex": "640038ff00400500f9ff090000c02a00ffff0000d00730f8",
+      "hex": "aa55180101cc120000640038ff00400500f9ff090000c02a00ffff0000d00730f8d32d",
+      "valid": true,
+      "imu_batch": [
+        [
+          100,
+          -200,
+          16384,
+          5,
+          -7,
+          9
+        ],
+        [
+          -16384,
+          42,
+          -1,
+          0,
+          2000,
+          -2000
+        ]
+      ]
+    },
+    {
+      "name": "srv_fb_all_servos",
+      "type_id": 8,
+      "seq": 200,
+      "ts32": 100000,
+      "payload_hex": "00000a0023000214002400041e00250008280026b80b320027ff0f3c0028",
+      "hex": "aa551e08c8a086010000000a0023000214002400041e00250008280026b80b320027ff0f3c00281329",
+      "valid": true,
+      "srv_fb": [
+        [
+          0,
+          10,
+          35
+        ],
+        [
+          512,
+          20,
+          36
+        ],
+        [
+          1024,
+          30,
+          37
+        ],
+        [
+          2048,
+          40,
+          38
+        ],
+        [
+          3000,
+          50,
+          39
+        ],
+        [
+          4095,
+          60,
+          40
+        ]
+      ]
+    },
+    {
+      "name": "pwr_mon_nominal",
+      "type_id": 7,
+      "seq": 42,
+      "ts32": 65535,
+      "payload_hex": "e02e0000a2feffff0100",
+      "hex": "aa550a072affff0000e02e0000a2feffff01008a01",
+      "valid": true,
+      "pwr_mon": [
+        12000,
+        -350,
+        1,
+        0
+      ]
+    },
+    {
+      "name": "config_ack_opaque",
+      "type_id": 2,
+      "seq": 3,
+      "ts32": 7,
+      "payload_hex": "0102",
+      "hex": "aa550202030700000001020352",
+      "valid": true
+    },
+    {
+      "name": "cmd_act_corrupt_crc",
+      "hex": "aa550d0607e803000000080004000c0002ff0f000001f22a",
+      "valid": false,
+      "expect_error": "CRC mismatch"
+    },
+    {
+      "name": "stream_garbage_mark_imu",
+      "stream_hex": "00deadbeefaa55000400000000006ff7aa5599aa55180101cc120000640038ff00400500f9ff090000c02a00ffff0000d00730f8d32d",
+      "expect_frames": [
+        "mark_heartbeat",
+        "imu_batch_two_samples"
+      ],
+      "valid": true
+    }
+  ]
+}

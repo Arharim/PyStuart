@@ -96,8 +96,8 @@ class WashoutConfig:
     tilt_rate_limit_deg_s: float = 8.0
     tilt_roll_gain: float = 1.0
     tilt_pitch_gain: float = 1.0
-    max_translation_mm: Tuple[float, float, float] = (60.0, 60.0, 50.0)
-    max_rotation_deg: Tuple[float, float, float] = (25.0, 25.0, 40.0)
+    max_translation_mm: Tuple[float, float, float] = (30.0, 30.0, 22.0)
+    max_rotation_deg: Tuple[float, float, float] = (15.0, 15.0, 18.0)
     gravity: float = 9.81
 
     def validate(self) -> None:

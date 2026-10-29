@@ -15,6 +15,10 @@ from pystuart.cueing.telemetry import TelemetrySample
 from pystuart.cueing.washout import WashoutConfig, WashoutFilter
 from pystuart.core.config import Geometry
 from pystuart.core.platform import StewartPlatform
+from pystuart.transport.actuator import ActuatorWriter
+from pystuart.transport.protocol import TYPE_CMD_ACT, decode_cmd_act, decode_frame
+from pystuart.transport.serial_link import SerialLink
+from pystuart.transport.servo_map import ServoCalibration
 
 
 def make_washout():
@@ -90,7 +94,8 @@ class TestRunAc:
 
         poses = []
         stats = run_ac(Source(), make_washout(), lambda p, s: poses.append(p), max_misses=4)
-        assert stats == {"samples": 3, "timed_out": True}
+        assert stats == {"samples": 3, "servos_sent": 0, "invalid_poses": 0,
+                         "timed_out": True}
         assert len(poses) == 3
 
     def test_miss_counter_resets_on_data(self):
@@ -108,6 +113,55 @@ class TestRunAc:
         stats = run_ac(Source(), make_washout(), lambda p, s: poses.append(p), max_misses=5)
         assert stats["timed_out"] is True
         assert stats["samples"] == 14  # every call that is not a multiple of 3, up to 20
+
+
+class TestServoOutput:
+    def _zeros_source(self, count):
+        samples = [TelemetrySample(t=i * 0.1, force=(0.0, 0.0, 0.0), rate=(0.0, 0.0, 0.0))
+                   for i in range(count)]
+
+        class Source:
+            def __iter__(self):
+                return iter(samples)
+
+        return Source()
+
+    def test_rest_pose_sends_center_counts(self):
+        with ActuatorWriter(SerialLink("loop://", baudrate=921600),
+                            ServoCalibration()) as actuator:
+            ik = StewartPlatform(Geometry.desktop())
+            stats = run_csv(self._zeros_source(5), make_washout(), lambda p, s: None,
+                            pacing=False, actuator=actuator, ik_model=ik)
+            actuator._link._serial.timeout = 0.2
+            wire = actuator._link._serial.read(4096)
+        assert stats["servos_sent"] == 5
+        assert stats["invalid_poses"] == 0
+        assert len(wire) == 5 * 24  # five CMD_ACT frames, 24 bytes each
+        for i in range(5):
+            frame = decode_frame(wire[i * 24:(i + 1) * 24])
+            assert frame.type == TYPE_CMD_ACT
+            counts, flags = decode_cmd_act(frame.payload)
+            assert counts == (2048,) * 6
+
+    def test_unreachable_poses_are_skipped(self):
+        class BrokenIK:
+            def update_pose(self, translation, rotation):
+                pass
+
+            def is_valid_pose(self):
+                return False
+
+            def get_alpha_angles(self):
+                raise AssertionError("never reached on invalid pose")
+
+        with ActuatorWriter(SerialLink("loop://", baudrate=921600),
+                            ServoCalibration()) as actuator:
+            stats = run_csv(self._zeros_source(3), make_washout(), lambda p, s: None,
+                            pacing=False, actuator=actuator, ik_model=BrokenIK())
+            actuator._link._serial.timeout = 0.05
+            wire = actuator._link._serial.read(4096)
+        assert stats == {"samples": 3, "servos_sent": 0, "invalid_poses": 3}
+        assert wire == b""
 
 
 class TestCli:
@@ -131,3 +185,15 @@ class TestCli:
         assert code == 0
         err = capsys.readouterr().err
         assert "processed 5 samples" in err
+
+    def test_csv_with_serial_smoke(self, tmp_path, capsys):
+        path = tmp_path / "rec.csv"
+        lines = ["t_s,fx_mps2,fy_mps2,fz_mps2,p_radps,q_radps,r_radps"]
+        lines += ["%.3f,0.0,0.0,0.0,0.0,0.0,0.0" % (i * 0.01) for i in range(5)]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+        code = main(["csv", str(path), "--no-pacing", "--serial", "loop://",
+                     "--rate", "1000000"])
+        assert code == 0
+        err = capsys.readouterr().err
+        assert "5 servo frames" in err

@@ -81,8 +81,8 @@ class TestTranslationalChannel:
 class TestTiltChannel:
     def test_sustained_accel_converges_to_gravity_angle(self):
         washout = make_filter()
-        poses = run(washout, 30.0, force=(3.0, 0.0, 0.0))
-        target = -math.atan2(3.0, WashoutConfig(dt=DT).gravity)
+        poses = run(washout, 30.0, force=(2.5, 0.0, 0.0))
+        target = -math.atan2(2.5, WashoutConfig(dt=DT).gravity)
         assert poses[-1].rotation_rad[1] == pytest.approx(target, rel=0.05)
 
     def test_tilt_rate_limited(self):
@@ -97,8 +97,8 @@ class TestTiltChannel:
 
     def test_lateral_accel_banks_not_pitches(self):
         washout = make_filter()
-        poses = run(washout, 30.0, force=(0.0, 3.0, 0.0))
-        target = math.atan2(3.0, WashoutConfig(dt=DT).gravity)
+        poses = run(washout, 30.0, force=(0.0, 2.5, 0.0))
+        target = math.atan2(2.5, WashoutConfig(dt=DT).gravity)
         assert poses[-1].rotation_rad[0] == pytest.approx(target, rel=0.05)
         assert abs(poses[-1].rotation_rad[1]) < 0.02
 

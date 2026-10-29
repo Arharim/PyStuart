@@ -31,7 +31,7 @@ class TelemetrySample:
 def load_csv_samples(path) -> List[TelemetrySample]:
     """Read a telemetry CSV with the t_s / fx..fz / p..r schema."""
     samples: List[TelemetrySample] = []
-    with open(path, "r", newline="", encoding="utf-8") as f:
+    with open(path, "r", newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         missing = [c for c in CSV_COLUMNS if c not in (reader.fieldnames or [])]
         if missing:

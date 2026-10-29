@@ -1,7 +1,7 @@
 """
-Motion cueing layer (planned).
+Motion cueing layer: washout filters and telemetry sources.
 
-Classical washout filters (high-pass, tilt coordination, limits) and
-telemetry sources (Assetto Corsa UDP, CSV replay). Not implemented yet;
-see docs/pystuart_prototype_design.md, section 11.
+Implemented: classical washout chain (washout.py) with config loading.
+Planned: telemetry sources - Assetto Corsa UDP and CSV replay - feeding
+the filters. See docs/pystuart_prototype_design.md, section 11.
 """

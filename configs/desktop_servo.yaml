@@ -11,3 +11,21 @@ geometry:
   platform_angles_deg: [-54, -66, -174, -186, -294, -306]
   beta_deg: [30, -150, -90, 90, 150, -30]
   initial_height_mm: 120.28183632
+
+# Washout cueing: starting points for the desktop rig, retune on hardware.
+# Sign convention: +X forward, +Y left, +Z up; forward accel pitches nose up.
+# If a direction feels inverted on the rig, flip the tilt_*_gain sign here.
+washout:
+  dt_s: 0.005
+  accel_gain: [0.4, 0.4, 0.5]
+  trans_hp_hz: 0.3
+  trans_zeta: 1.0
+  rot_hp_hz: 1.0
+  rot_zeta: 1.0
+  tilt_lp_hz: 0.15
+  tilt_zeta: 1.0
+  tilt_rate_limit_deg_s: 8.0
+  tilt_roll_gain: 1.0
+  tilt_pitch_gain: 1.0
+  max_translation_mm: [60.0, 60.0, 50.0]
+  max_rotation_deg: [25.0, 25.0, 40.0]

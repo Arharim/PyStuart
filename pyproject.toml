@@ -9,6 +9,12 @@ description = "Stewart Platform (Hexapod) Simulation and Control"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
+dependencies = [
+    "PyQt6>=6.4.0",
+    "PyOpenGL>=3.1.5",
+    "numpy>=1.24.0",
+    "PyYAML>=6.0",
+]
 authors = [
     {name = "Arharim", email = "Arharim@users.noreply.github.com"}
 ]

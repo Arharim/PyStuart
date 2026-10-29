@@ -3,10 +3,13 @@ Golden tests for the pystuart transport protocol.
 
 The vectors in tests/golden/protocol_vectors.json freeze the exact wire
 bytes agreed with the Bridge/Node firmware: any deviation on either
-side turns these red. The CRC known-answer test anchors the checksum
-against the published CCITT-FALSE reference ("123456789" -> 0x29B1),
-keeping vector generation honest.
+side turns these red. The vectors are generated with the codec itself,
+which makes them blind to symmetric bugs - so the CRC is anchored to
+the published CCITT-FALSE known answer AND to the stdlib's independent
+binascii.crc_hqx implementation, and one frame is hand-assembled from
+the spec table byte by byte.
 """
+import binascii
 import json
 from pathlib import Path
 
@@ -28,6 +31,31 @@ TYPE_BY_NAME = {v["name"]: v["type_id"] for v in VECTORS if "type_id" in v}
 
 def test_crc16_ccitt_known_answer():
     assert crc16_ccitt(b"123456789") == 0x29B1
+
+
+def test_crc_matches_independent_stdlib_implementation():
+    raw = encode_frame(
+        TYPE_CMD_ACT, encode_cmd_act([2048, 1024, 3072, 512, 4095, 0]), 7, 1000
+    )
+    assert binascii.crc_hqx(b"123456789", 0xFFFF) == 0x29B1
+    assert binascii.crc_hqx(raw[2:-2], 0xFFFF) == int.from_bytes(raw[-2:], "little")
+
+
+def test_cmd_act_frame_matches_hand_assembled_spec_bytes():
+    payload = (
+        bytes([0x00, 0x08])
+        + bytes([0x00, 0x04])
+        + bytes([0x00, 0x0C])
+        + bytes([0x00, 0x02])
+        + bytes([0xFF, 0x0F])
+        + bytes([0x00, 0x00])
+        + bytes([0x01])
+    )
+    ts = bytes([1000 & 0xFF, (1000 >> 8) & 0xFF, (1000 >> 16) & 0xFF, (1000 >> 24) & 0xFF])
+    header = bytes([0xAA, 0x55, len(payload), TYPE_CMD_ACT, 7]) + ts
+    expected = header + payload + binascii.crc_hqx(header[2:] + payload, 0xFFFF).to_bytes(2, "little")
+    assert encode_frame(TYPE_CMD_ACT, payload, seq=7, ts32=1000) == expected
+    assert expected.hex() == "aa550d0607e803000000080004000c0002ff0f000001f2d5"
 
 
 @pytest.mark.parametrize("vector", VECTORS, ids=lambda v: v["name"])

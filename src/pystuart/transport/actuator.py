@@ -5,10 +5,13 @@ Turns IK horn angles into calibrated encoder counts and ships them as
 CMD_ACT frames at the caller's cadence (50-200 Hz per design doc,
 section 8.3). Sequence numbers and the ts32 sender clock are handled
 here. poll() collects upstream SRV_FB / PWR_MON replies so the same
-object serves the diagnostic loop.
+object serves the diagnostic loop. PoseSender adds the rate-limited
+IK stage shared by the headless runner and the GUI.
 """
 import time
-from typing import List, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
+
+from ..core.platform import StewartPlatform
 
 from .protocol import (
     FLAG_CMD_ENABLE, FLAG_CMD_TORQUE_OFF, TYPE_CMD_ACT, TYPE_PWR_MON,
@@ -65,3 +68,35 @@ class ActuatorWriter:
 
     def __exit__(self, exc_type, exc, tb) -> None:
         self.close()
+
+
+class PoseSender:
+    """Rate-limited pose -> IK -> CMD_ACT path shared by runner and GUI.
+
+    send() no-ops (returns False) while the send interval has not
+    elapsed and counts a skip when the pose is outside the IK
+    workspace; the bus keeps the last valid targets either way.
+    """
+
+    def __init__(self, actuator: ActuatorWriter, ik_model: StewartPlatform, rate_hz: float = 100.0):
+        if rate_hz <= 0:
+            raise ValueError("rate_hz must be positive")
+        self._actuator = actuator
+        self._ik = ik_model
+        self._interval = 1.0 / rate_hz
+        self._last_send = float("-inf")
+        self.sent = 0
+        self.skipped = 0
+
+    def send(self, translation_mm, rotation_rad) -> bool:
+        now = time.monotonic()
+        if now - self._last_send < self._interval:
+            return False
+        self._last_send = now
+        self._ik.update_pose(translation_mm, rotation_rad)
+        if not self._ik.is_valid_pose():
+            self.skipped += 1
+            return False
+        self._actuator.send_targets(self._ik.get_alpha_angles())
+        self.sent += 1
+        return True

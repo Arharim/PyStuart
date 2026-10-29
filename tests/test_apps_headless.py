@@ -15,7 +15,7 @@ from pystuart.cueing.telemetry import TelemetrySample
 from pystuart.cueing.washout import WashoutConfig, WashoutFilter
 from pystuart.core.config import Geometry
 from pystuart.core.platform import StewartPlatform
-from pystuart.transport.actuator import ActuatorWriter
+from pystuart.transport.actuator import ActuatorWriter, PoseSender
 from pystuart.transport.protocol import TYPE_CMD_ACT, decode_cmd_act, decode_frame
 from pystuart.transport.serial_link import SerialLink
 from pystuart.transport.servo_map import ServoCalibration
@@ -129,9 +129,10 @@ class TestServoOutput:
     def test_rest_pose_sends_center_counts(self):
         with ActuatorWriter(SerialLink("loop://", baudrate=921600),
                             ServoCalibration()) as actuator:
-            ik = StewartPlatform(Geometry.desktop())
+            sender = PoseSender(actuator, StewartPlatform(Geometry.desktop()),
+                                rate_hz=1e6)
             stats = run_csv(self._zeros_source(5), make_washout(), lambda p, s: None,
-                            pacing=False, actuator=actuator, ik_model=ik)
+                            pacing=False, sender=sender)
             actuator._link._serial.timeout = 0.2
             wire = actuator._link._serial.read(4096)
         assert stats["servos_sent"] == 5
@@ -156,8 +157,9 @@ class TestServoOutput:
 
         with ActuatorWriter(SerialLink("loop://", baudrate=921600),
                             ServoCalibration()) as actuator:
+            sender = PoseSender(actuator, BrokenIK(), rate_hz=1e6)
             stats = run_csv(self._zeros_source(3), make_washout(), lambda p, s: None,
-                            pacing=False, actuator=actuator, ik_model=BrokenIK())
+                            pacing=False, sender=sender)
             actuator._link._serial.timeout = 0.05
             wire = actuator._link._serial.read(4096)
         assert stats == {"samples": 3, "servos_sent": 0, "invalid_poses": 3}

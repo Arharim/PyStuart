@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 import math
 import numpy as np
-from .pose_presets import PosePresets
+from ..core.pose_presets import PosePresets
 
 
 class ControlPanel(QWidget):

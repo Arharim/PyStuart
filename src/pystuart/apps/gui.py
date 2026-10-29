@@ -1,6 +1,14 @@
+"""
+GUI entry point.
+
+Launches the PyQt6 simulator window:
+    python -m pystuart
+"""
 import sys
+
 from PyQt6.QtWidgets import QApplication
-from .main_window import MainWindow
+
+from ..gui.main_window import MainWindow
 
 
 def main():
@@ -8,7 +16,3 @@ def main():
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
-
-
-if __name__ == "__main__":
-    main()

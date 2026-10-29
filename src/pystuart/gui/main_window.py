@@ -1,9 +1,9 @@
 from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QMessageBox, QScrollArea, QFileDialog, QProgressDialog
 from PyQt6.QtCore import Qt, QTimer
+from ..core.trajectory import Trajectory
+from ..core.workspace import WorkspaceAnalyzer
 from .gl_widget import GLWidget
 from .control_panel import ControlPanel
-from .trajectory import Trajectory
-from .workspace import WorkspaceAnalyzer
 import csv
 import math
 
@@ -13,7 +13,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Stewart Platform Simulator v1.0")
+        self.setWindowTitle("Stewart Platform Simulator v2.0-dev")
         self.setMinimumSize(1000, 600)
 
         self.trajectory = Trajectory()

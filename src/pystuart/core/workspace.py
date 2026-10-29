@@ -1,6 +1,6 @@
 import numpy as np
 from typing import List, Tuple, Optional
-from .stewart_platform import StewartPlatform
+from .platform import StewartPlatform
 
 
 class WorkspaceAnalyzer:

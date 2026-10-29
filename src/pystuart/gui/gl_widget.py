@@ -6,7 +6,8 @@ from PyQt6.QtCore import Qt
 from OpenGL.GL import *
 from OpenGL.GLU import *
 import math
-from .stewart_platform import StewartPlatform
+from ..core.platform import StewartPlatform
+from .renderer import PlatformRenderer
 
 
 class GLWidget(QOpenGLWidget):
@@ -28,6 +29,7 @@ class GLWidget(QOpenGLWidget):
         self.camera_target = [0.0, 0.0, 60.0]
         self.last_mouse_pos = None
         self.platform = StewartPlatform()
+        self.renderer = PlatformRenderer()
         self.show_workspace = False
         self.workspace_data = None
 
@@ -78,7 +80,7 @@ class GLWidget(QOpenGLWidget):
         self.draw_axes()
         glEnable(GL_LIGHTING)
         
-        self.platform.draw()
+        self.renderer.draw(self.platform)
 
         if self.show_workspace and self.workspace_data is not None:
             glDisable(GL_LIGHTING)

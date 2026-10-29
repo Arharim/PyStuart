@@ -1,15 +1,24 @@
-from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QMessageBox, QScrollArea, QFileDialog, QProgressDialog
+from PyQt6.QtWidgets import (
+    QMainWindow, QWidget, QHBoxLayout, QMessageBox, QScrollArea,
+    QFileDialog, QProgressDialog, QTabWidget,
+)
 from PyQt6.QtCore import Qt, QTimer
 from ..core.trajectory import Trajectory
 from ..core.workspace import WorkspaceAnalyzer
+from ..cueing.telemetry import AcUdpTelemetrySource, CsvTelemetrySource
 from .gl_widget import GLWidget
 from .control_panel import ControlPanel
+from .cueing_panel import CueingPanel
+from .hardware_panel import HardwarePanel
 import csv
 import math
 
 
 class MainWindow(QMainWindow):
     TIMER_INTERVAL_MS = 16
+    CUEING_TICK_MS = 5
+    FEEDBACK_POLL_MS = 50
+    MAX_CUEING_MISSES = 40
 
     def __init__(self):
         super().__init__()
@@ -21,9 +30,17 @@ class MainWindow(QMainWindow):
         self._playing = False
         self._seeking = False
 
+        self._cueing_source = None
+        self._cueing_washout = None
+        self._cueing_misses = 0
+
         self._timer = QTimer(self)
         self._timer.setInterval(self.TIMER_INTERVAL_MS)
         self._timer.timeout.connect(self._on_animation_tick)
+
+        self._cueing_timer = QTimer(self)
+        self._cueing_timer.setInterval(self.CUEING_TICK_MS)
+        self._cueing_timer.timeout.connect(self._on_cueing_tick)
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -35,6 +52,32 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.gl_widget, stretch=1)
 
         self.control_panel = ControlPanel()
+        self.cueing_panel = CueingPanel()
+        self.cueing_panel.start_requested.connect(self._start_cueing)
+        self.cueing_panel.stop_requested.connect(self._stop_cueing)
+        self.hardware_panel = HardwarePanel()
+
+        manual_page = QScrollArea()
+        manual_page.setWidget(self.control_panel)
+        manual_page.setWidgetResizable(True)
+        manual_page.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        manual_page.setMinimumWidth(270)
+
+        self.tabs = QTabWidget()
+        self.tabs.addTab(manual_page, "Manual")
+        self.tabs.addTab(self.cueing_panel, "Cueing")
+        self.tabs.addTab(self.hardware_panel, "Hardware")
+        layout.addWidget(self.tabs)
+
+        self._wire_control_panel()
+        self._workspace_analyzer = None
+
+        self._feedback_timer = QTimer(self)
+        self._feedback_timer.setInterval(self.FEEDBACK_POLL_MS)
+        self._feedback_timer.timeout.connect(self.hardware_panel.poll_feedback)
+        self._feedback_timer.start()
+
+    def _wire_control_panel(self):
         self.control_panel.pose_changed.connect(self._on_pose_changed)
         self.control_panel.reset_requested.connect(self._on_reset)
         self.control_panel.reset_camera_requested.connect(self._on_reset_camera)
@@ -48,14 +91,57 @@ class MainWindow(QMainWindow):
         self.control_panel.workspace_compute_requested.connect(self._on_compute_workspace)
         self.control_panel.workspace_toggle_requested.connect(self._on_workspace_toggle)
 
-        self._workspace_analyzer = None
+    # ----- cueing pipeline -------------------------------------------------
 
-        scroll = QScrollArea()
-        scroll.setWidget(self.control_panel)
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setMinimumWidth(270)
-        layout.addWidget(scroll)
+    def _start_cueing(self):
+        panel = self.cueing_panel
+        try:
+            washout = panel.load_washout_config()
+            if panel.is_ac_selected():
+                source = AcUdpTelemetrySource(panel.ac_host(), panel.ac_port(), timeout=0.02)
+                source.start()
+            else:
+                path = panel.csv_path()
+                if not path:
+                    panel.set_status("pick a CSV file first")
+                    return
+                source = CsvTelemetrySource(path)
+        except Exception as e:
+            panel.set_status("start failed: %s" % e)
+            return
+        self._cueing_source = source
+        self._cueing_washout = washout
+        self._cueing_misses = 0
+        panel.set_running(True)
+        panel.set_status("running (%s)" % ("AC UDP" if panel.is_ac_selected() else "CSV"))
+        self._cueing_timer.start()
+
+    def _stop_cueing(self, status="stopped"):
+        if self._cueing_timer.isActive():
+            self._cueing_timer.stop()
+        if self._cueing_source is not None and isinstance(self._cueing_source,
+                                                          AcUdpTelemetrySource):
+            self._cueing_source.stop()
+        self._cueing_source = None
+        self.cueing_panel.set_running(False)
+        self.cueing_panel.set_status(status)
+
+    def _on_cueing_tick(self):
+        sample = self._cueing_source.next_sample()
+        if sample is None:
+            self._cueing_misses += 1
+            if self._cueing_misses >= self.MAX_CUEING_MISSES:
+                self._stop_cueing("feed lost - stopped")
+            return
+        self._cueing_misses = 0
+        pose = self._cueing_washout.step(sample.force, sample.rate)
+        self.gl_widget.platform.update_pose(pose.translation_mm, pose.rotation_rad)
+        self.gl_widget.update()
+        self._update_feedback()
+        self.cueing_panel.update_live(sample, pose)
+        self.hardware_panel.send_pose(pose.translation_mm, pose.rotation_rad)
+
+    # ----- manual control --------------------------------------------------
 
     def _on_pose_changed(self):
         pose = self.control_panel.get_pose()
@@ -64,6 +150,7 @@ class MainWindow(QMainWindow):
         self.gl_widget.platform.update_pose(translation, rotation)
         self.gl_widget.update()
         self._update_feedback()
+        self.hardware_panel.send_pose(translation, rotation)
 
     def _on_reset(self):
         self.gl_widget.platform.update_pose([0, 0, 0], [0, 0, 0])
@@ -161,6 +248,13 @@ class MainWindow(QMainWindow):
         self.gl_widget.platform.update_pose(translation, rotation)
         self.gl_widget.update()
         self._update_feedback()
+        self.hardware_panel.send_pose(translation, rotation)
+
+    def closeEvent(self, event):
+        self._stop_cueing("closed")
+        self._feedback_timer.stop()
+        self.hardware_panel.disconnect_serial()
+        super().closeEvent(event)
 
     def _on_export_current(self):
         alpha = self.gl_widget.platform.get_alpha_angles()

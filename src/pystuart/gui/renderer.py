@@ -21,10 +21,10 @@ class PlatformRenderer:
     def _draw_base(self, platform):
         """Draw the base plate."""
         glColor4f(0.3, 0.3, 0.35, 0.8)
-        self._draw_circle(0, 0, 0, platform.BASE_RADIUS)
+        self._draw_circle(0, 0, 0, platform.geometry.base_radius)
 
         glColor4f(0.2, 0.2, 0.25, 0.8)
-        self._draw_circle_border(0, 0, 0, platform.BASE_RADIUS)
+        self._draw_circle_border(0, 0, 0, platform.geometry.base_radius)
 
         glPointSize(10.0)
         glBegin(GL_POINTS)
@@ -47,10 +47,10 @@ class PlatformRenderer:
             glColor4f(0.2, 0.6, 0.3, 0.8)
         else:
             glColor4f(0.8, 0.2, 0.2, 0.8)
-        self._draw_circle(0, 0, 0, platform.PLATFORM_RADIUS)
+        self._draw_circle(0, 0, 0, platform.geometry.platform_radius)
 
         glColor4f(0.15, 0.45, 0.2, 0.8) if platform.valid_pose else glColor4f(0.6, 0.15, 0.15, 0.8)
-        self._draw_circle_border(0, 0, 0, platform.PLATFORM_RADIUS)
+        self._draw_circle_border(0, 0, 0, platform.geometry.platform_radius)
 
         glPopMatrix()
 

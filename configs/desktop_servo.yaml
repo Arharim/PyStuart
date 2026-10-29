@@ -1,0 +1,13 @@
+# Desktop servo prototype rig (design document, section 1):
+# base/platform/horn/rod 76/60/40/130 mm, rest height 120.28 mm.
+# Angles in degrees; beta is the servo horn plane orientation per leg.
+# The full-size rig (fullscale_svp.yaml) swaps this file, not the code.
+geometry:
+  base_radius_mm: 76.0
+  platform_radius_mm: 60.0
+  horn_length_mm: 40.0
+  rod_length_mm: 130.0
+  base_angles_deg: [-50, -70, -170, -190, -290, -310]
+  platform_angles_deg: [-54, -66, -174, -186, -294, -306]
+  beta_deg: [30, -150, -90, 90, 150, -30]
+  initial_height_mm: 120.28183632

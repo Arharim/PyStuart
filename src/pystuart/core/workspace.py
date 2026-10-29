@@ -72,7 +72,7 @@ class WorkspaceAnalyzer:
         for tx in np.arange(x_min - 2, x_max + 2 + step * 0.5, step):
             for ty in np.arange(y_min - 2, y_max + 2 + step * 0.5, step):
                 self._platform.update_pose([tx, ty, z_mid], rotation)
-                pt = (tx, ty, z_mid + self._platform.INITIAL_HEIGHT)
+                pt = (tx, ty, z_mid + self._platform.geometry.initial_height)
                 if self._platform.is_valid_pose():
                     self.slice_points['valid'].append(pt)
                 else:
@@ -83,7 +83,7 @@ class WorkspaceAnalyzer:
                 for tz in (z_min, z_max):
                     self._platform.update_pose([tx, ty, tz], rotation)
                     if self._platform.is_valid_pose():
-                        self.boundary_points.append((tx, ty, tz + self._platform.INITIAL_HEIGHT))
+                        self.boundary_points.append((tx, ty, tz + self._platform.geometry.initial_height))
 
         self._platform.update_pose([0, 0, 0], [0, 0, 0])
 

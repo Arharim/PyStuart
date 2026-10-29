@@ -172,7 +172,7 @@ class GLWidget(QOpenGLWidget):
 
         if 'bounds' in data and data['bounds'] is not None:
             b = data['bounds']
-            h = StewartPlatform.INITIAL_HEIGHT
+            h = self.platform.geometry.initial_height
             xn, xx = b['pos_x']
             yn, yx = b['pos_y']
             zn, zx = b['pos_z'][0] + h, b['pos_z'][1] + h

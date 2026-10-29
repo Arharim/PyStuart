@@ -6,65 +6,53 @@ a 6-DOF parallel manipulator (Stewart platform / hexapod).
 Pure numpy: no rendering or GUI dependencies live here.
 """
 import numpy as np
+
+from .config import Geometry
 from .math_utils import rotation_matrix, safe_arcsin
 
 
 class StewartPlatform:
     """
     Stewart Platform (hexapod) model.
-    
+
     A 6-DOF parallel manipulator with 6 linear actuators connecting
     a base plate to a movable platform.
-    
-    Attributes:
-        BASE_RADIUS: Radius of the base plate in mm.
-        PLATFORM_RADIUS: Radius of the platform plate in mm.
-        HORN_LENGTH: Length of servo horns in mm.
-        ROD_LENGTH: Length of connecting rods in mm.
-        INITIAL_HEIGHT: Initial height of platform above base in mm.
-    """
-    
-    BASE_ANGLES = np.array([-50, -70, -170, -190, -290, -310])
-    PLATFORM_ANGLES = np.array([-54, -66, -174, -186, -294, -306])
-    BETA = np.array([np.pi / 6, -5 * np.pi / 6, -np.pi / 2, np.pi / 2, 5 * np.pi / 6, -np.pi / 6])
-    
-    BASE_RADIUS = 76.0
-    PLATFORM_RADIUS = 60.0
-    HORN_LENGTH = 40.0
-    ROD_LENGTH = 130.0
-    INITIAL_HEIGHT = 120.28183632
 
-    def __init__(self):
-        """Initialize the Stewart platform with default pose."""
+    Attributes:
+        geometry: rigid dimensions and angles of the rig (see core.config).
+    """
+
+    def __init__(self, geometry: Geometry = None):
+        """Initialize the platform; defaults to the desktop rig geometry."""
+        self.geometry = geometry if geometry is not None else Geometry.desktop()
+        self.geometry.validate()
         self.translation = np.array([0.0, 0.0, 0.0])
         self.rotation = np.array([0.0, 0.0, 0.0])
-        self.initial_height = np.array([0.0, 0.0, self.INITIAL_HEIGHT])
+        self.initial_height = np.array([0.0, 0.0, self.geometry.initial_height])
         self.valid_pose = True
-        
+
         self.b = np.zeros((6, 3))
         self.p = np.zeros((6, 3))
         self.q = np.zeros((6, 3))
         self.l = np.zeros((6, 3))
         self.a = np.zeros((6, 3))
         self.alpha = np.zeros(6)
-        
+
         self._init_attachment_points()
         self._calculate_vectors()
-    
+
     def _init_attachment_points(self):
         """Initialize base and platform attachment point positions."""
+        g = self.geometry
         for i in range(6):
-            base_angle_rad = np.radians(self.BASE_ANGLES[i])
             self.b[i] = [
-                self.BASE_RADIUS * np.cos(base_angle_rad),
-                self.BASE_RADIUS * np.sin(base_angle_rad),
+                g.base_radius * np.cos(g.base_angles[i]),
+                g.base_radius * np.sin(g.base_angles[i]),
                 0.0
             ]
-            
-            platform_angle_rad = np.radians(self.PLATFORM_ANGLES[i])
             self.p[i] = [
-                self.PLATFORM_RADIUS * np.cos(platform_angle_rad),
-                self.PLATFORM_RADIUS * np.sin(platform_angle_rad),
+                g.platform_radius * np.cos(g.platform_angles[i]),
+                g.platform_radius * np.sin(g.platform_angles[i]),
                 0.0
             ]
     
@@ -85,30 +73,31 @@ class StewartPlatform:
         Sets valid_pose to False if pose is unreachable.
         """
         self.valid_pose = True
-        
+
+        g = self.geometry
         for i in range(6):
-            L = np.dot(self.l[i], self.l[i]) - (self.ROD_LENGTH ** 2 - self.HORN_LENGTH ** 2)
-            M = 2 * self.HORN_LENGTH * (self.q[i, 2] - self.b[i, 2])
-            N = 2 * self.HORN_LENGTH * (
-                np.cos(self.BETA[i]) * (self.q[i, 0] - self.b[i, 0]) +
-                np.sin(self.BETA[i]) * (self.q[i, 1] - self.b[i, 1])
+            L = np.dot(self.l[i], self.l[i]) - (g.rod_length ** 2 - g.horn_length ** 2)
+            M = 2 * g.horn_length * (self.q[i, 2] - self.b[i, 2])
+            N = 2 * g.horn_length * (
+                np.cos(g.beta[i]) * (self.q[i, 0] - self.b[i, 0]) +
+                np.sin(g.beta[i]) * (self.q[i, 1] - self.b[i, 1])
             )
-            
+
             denominator = np.sqrt(M * M + N * N)
             arcsin_arg = L / denominator if denominator > 0 else L
-            
+
             self.alpha[i] = safe_arcsin(arcsin_arg)
-            
+
             if np.isnan(self.alpha[i]):
                 self.valid_pose = False
             else:
                 self.alpha[i] -= np.arctan2(N, M)
-            
+
             if not np.isnan(self.alpha[i]):
                 self.a[i] = [
-                    self.HORN_LENGTH * np.cos(self.alpha[i]) * np.cos(self.BETA[i]) + self.b[i, 0],
-                    self.HORN_LENGTH * np.cos(self.alpha[i]) * np.sin(self.BETA[i]) + self.b[i, 1],
-                    self.HORN_LENGTH * np.sin(self.alpha[i]) + self.b[i, 2]
+                    g.horn_length * np.cos(self.alpha[i]) * np.cos(g.beta[i]) + self.b[i, 0],
+                    g.horn_length * np.cos(self.alpha[i]) * np.sin(g.beta[i]) + self.b[i, 1],
+                    g.horn_length * np.sin(self.alpha[i]) + self.b[i, 2]
                 ]
     
     def update_pose(self, translation, rotation):

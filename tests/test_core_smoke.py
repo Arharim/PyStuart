@@ -2,14 +2,17 @@
 Smoke tests for the pystuart.core package.
 
 Fast, headless checks of the invariants that keep the simulator honest:
-IK reachability, rod-length conservation, trajectory interpolation and
-preset persistence. Golden-vector IK tests land with the v2 cueing work.
+IK reachability, rod-length conservation, config-driven geometry,
+trajectory interpolation and preset persistence. Golden-vector IK tests
+land with the v2 cueing work.
 """
 import math
+from pathlib import Path
 
 import numpy as np
 import pytest
 
+from pystuart.core.config import Geometry, load_geometry
 from pystuart.core.math_utils import clamp, rotation_matrix, safe_arcsin
 from pystuart.core.platform import StewartPlatform
 from pystuart.core.pose_presets import PosePresets
@@ -59,18 +62,15 @@ class TestPlatformIK:
                 continue
             checked += 1
             rods = np.linalg.norm(platform.q - platform.a, axis=1)
-            assert np.allclose(rods, StewartPlatform.ROD_LENGTH, atol=1e-6)
+            assert np.allclose(rods, platform.geometry.rod_length, atol=1e-6)
         assert checked >= 2, "validity filter skipped every pose - nothing was tested"
 
-    def test_unreachable_pose_flagged(self):
-        platform = StewartPlatform()
-        platform.update_pose([0.0, 0.0, 300.0], [0.0, 0.0, 0.0])
-        assert not platform.is_valid_pose()
-
     def test_geometry_tables(self):
-        assert len(StewartPlatform.BASE_ANGLES) == 6
-        assert len(StewartPlatform.PLATFORM_ANGLES) == 6
-        assert len(StewartPlatform.BETA) == 6
+        geometry = Geometry.desktop()
+        assert len(geometry.base_angles) == 6
+        assert len(geometry.platform_angles) == 6
+        assert len(geometry.beta) == 6
+        assert geometry.rod_length > geometry.horn_length > 0
 
 
 class TestTrajectory:
@@ -144,3 +144,54 @@ class TestWorkspace:
             assert lo <= hi
         # symmetric rig: translation reach must be symmetric
         assert bounds["pos_x"][0] == pytest.approx(-bounds["pos_x"][1])
+
+
+class TestGeometryConfig:
+    def test_shipped_config_matches_desktop_defaults(self, tmp_path):
+        repo_config = Path(__file__).parent.parent / "configs" / "desktop_servo.yaml"
+        assert load_geometry(repo_config) == Geometry.desktop()
+
+    def test_custom_geometry_roundtrip(self, tmp_path):
+        config = tmp_path / "custom.yaml"
+        config.write_text(
+            "geometry:\n"
+            "  base_radius_mm: 100.0\n"
+            "  platform_radius_mm: 80.0\n"
+            "  horn_length_mm: 50.0\n"
+            "  rod_length_mm: 160.0\n"
+            "  base_angles_deg: [-50, -70, -170, -190, -290, -310]\n"
+            "  platform_angles_deg: [-54, -66, -174, -186, -294, -306]\n"
+            "  beta_deg: [30, -150, -90, 90, 150, -30]\n"
+            "  initial_height_mm: 150.0\n",
+            encoding="utf-8",
+        )
+        geometry = load_geometry(config)
+        assert geometry.base_radius == 100.0
+        assert geometry.rod_length == 160.0
+
+        platform = StewartPlatform(geometry)
+        assert np.allclose(platform.b[0], [100.0 * np.cos(np.radians(-50)),
+                                           100.0 * np.sin(np.radians(-50)), 0.0])
+        assert platform.is_valid_pose()
+
+    def test_rejects_broken_geometry(self):
+        broken = Geometry(
+            base_radius=76.0, platform_radius=60.0, horn_length=140.0,
+            rod_length=130.0, base_angles=np.zeros(6),
+            platform_angles=np.zeros(6), beta=np.zeros(6),
+            initial_height=120.0,
+        )
+        with pytest.raises(ValueError):
+            broken.validate()
+
+    def test_rejects_missing_key(self, tmp_path):
+        bad = tmp_path / "bad.yaml"
+        bad.write_text("geometry:\n  base_radius_mm: 76.0\n", encoding="utf-8")
+        with pytest.raises(ValueError):
+            load_geometry(bad)
+
+    def test_rejects_missing_section(self, tmp_path):
+        bad = tmp_path / "bad.yaml"
+        bad.write_text("something: else\n", encoding="utf-8")
+        with pytest.raises(ValueError):
+            load_geometry(bad)

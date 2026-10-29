@@ -48,6 +48,7 @@ class TestPlatformIK:
     def test_rod_length_conserved(self):
         """Horn tip to platform attach point always equals ROD_LENGTH."""
         platform = StewartPlatform()
+        checked = 0
         for pose in (
             ([10.0, -5.0, 5.0], [0.087, -0.052, 0.14]),
             ([-20.0, 15.0, -10.0], [-0.1, 0.2, -0.3]),
@@ -56,8 +57,10 @@ class TestPlatformIK:
             platform.update_pose(*pose)
             if not platform.is_valid_pose():
                 continue
+            checked += 1
             rods = np.linalg.norm(platform.q - platform.a, axis=1)
             assert np.allclose(rods, StewartPlatform.ROD_LENGTH, atol=1e-6)
+        assert checked >= 2, "validity filter skipped every pose - nothing was tested"
 
     def test_unreachable_pose_flagged(self):
         platform = StewartPlatform()

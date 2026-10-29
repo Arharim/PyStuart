@@ -1,6 +1,9 @@
-# PyStewart - Stewart Platform Simulator
+# PyStuart - Stewart Platform Simulator
 
-Interactive 3D simulator for a Stewart Platform (hexapod) with real-time inverse kinematics.
+Interactive 3D simulator for a Stewart Platform (hexapod) with real-time
+inverse kinematics. The v2 line grows the simulator into the full motion
+rig stack: motion cueing (washout), sim racing telemetry and hardware
+transport.
 
 ## Features
 
@@ -9,6 +12,10 @@ Interactive 3D simulator for a Stewart Platform (hexapod) with real-time inverse
 - Camera controls (rotate, pan, zoom)
 - Servo angle feedback
 - Reachability detection
+- Trajectory animation (CSV import, playback, speed/loop)
+- Pose presets (save/load/delete named configurations)
+- Servo angle export (current pose and full trajectory) to CSV
+- Workspace boundary analysis with IK reachability grid
 
 ## Requirements
 
@@ -20,11 +27,13 @@ Interactive 3D simulator for a Stewart Platform (hexapod) with real-time inverse
 ## Installation
 
 ```bash
-# Clone the repository
-git clone <repository-url>
+git clone https://github.com/Arharim/PyStuart.git
 cd PyStuart
 
-# Install dependencies
+# editable install (recommended for development)
+pip install -e .
+
+# or just the dependencies
 pip install -r requirements.txt
 ```
 
@@ -33,7 +42,9 @@ pip install -r requirements.txt
 ### Run the application
 
 ```bash
-python -m src.main
+python -m pystuart
+# or, after pip install
+stewart-platform
 ```
 
 ### Controls
@@ -50,35 +61,22 @@ python -m src.main
 - Middle mouse: Vertical offset
 - Mouse wheel: Zoom in/out
 
-## Building Executable
-
-To create a standalone executable:
-
-```bash
-pip install pyinstaller
-pyinstaller --windowed --onefile --name "StewartPlatform" src/main.py
-```
-
-The executable will be created in the `dist/` directory.
-
 ## Project Structure
 
 ```
 PyStuart/
-├── src/
-│   ├── __init__.py
-│   ├── __main__.py
-│   ├── main.py           # Entry point
-│   ├── main_window.py    # Main application window
-│   ├── gl_widget.py      # OpenGL 3D rendering
-│   ├── control_panel.py  # UI controls
-│   ├── stewart_platform.py # Platform model & kinematics
-│   └── math_utils.py     # Mathematical utilities
-├── docs/                  # Documentation
-├── example_sketch/        # Reference sketches
-├── pipeline/              # Development pipeline
-├── requirements.txt       # Dependencies
-└── pyproject.toml         # Project configuration
+├── src/pystuart/
+│   ├── core/        # IK, geometry, limits (pure numpy)
+│   ├── cueing/      # washout filters, telemetry sources (planned)
+│   ├── transport/   # USB CDC / BLE / UDP hardware links (planned)
+│   ├── gui/         # PyQt6 widgets and OpenGL rendering
+│   ├── apps/        # entry points (gui, headless)
+│   └── __main__.py  # python -m pystuart
+├── tests/           # pytest suite
+├── samples/         # sample trajectories
+├── docs/            # local working notes (not committed)
+├── requirements.txt
+└── pyproject.toml
 ```
 
 ## Technical Details
@@ -96,8 +94,15 @@ PyStuart/
 ### Coordinate System
 
 - X-axis: Red
-- Y-axis: Green  
+- Y-axis: Green
 - Z-axis: Blue (vertical)
+
+## Running Tests
+
+```bash
+pip install pytest
+python -m pytest
+```
 
 ## License
 
@@ -105,4 +110,4 @@ MIT License
 
 ## Version
 
-v1.0.0
+v2.0.0-dev

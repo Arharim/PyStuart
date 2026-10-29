@@ -1,8 +1,9 @@
 """
-Hardware transport layer (planned).
+Hardware transport layer: frame codec, link backends, stream parsing.
 
-USB CDC / serial link to the Bridge board (sensor stream up,
-CMD_ACT down), BLE reception, UDP output for the full-size rig,
-and a mock backend for testing. Not implemented yet;
-see docs/pystuart_prototype_design.md, section 11.
+Implemented: wire protocol codec (protocol.py) and the in-memory mock
+link (mock.py) for tests and Bridge simulation. Planned: USB CDC /
+serial backend for the Bridge board (sensor stream up, CMD_ACT down),
+BLE reception and UDP output for the full-size rig.
+See docs/pystuart_prototype_design.md, sections 8 and 11.
 """

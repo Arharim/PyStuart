@@ -16,6 +16,9 @@ transport.
 - Pose presets (save/load/delete named configurations)
 - Servo angle export (current pose and full trajectory) to CSV
 - Workspace boundary analysis with IK reachability grid
+- Cueing pipeline: AC UDP / CSV telemetry -> classical washout -> live 3D
+- Hardware tab: serial link to the Bridge, CMD_ACT streaming, SRV_FB / PWR_MON readouts
+- Headless runner for rig-side service duty: `pystuart-headless`
 
 ## Requirements
 
@@ -45,6 +48,24 @@ pip install -r requirements.txt
 python -m pystuart
 # or, after pip install
 stewart-platform
+```
+
+### GUI tabs
+
+- **Manual** - platform sliders, presets, trajectory animation, workspace analysis
+- **Cueing** - pick a telemetry source (Assetto Corsa UDP or CSV replay) and
+  run it through the washout chain; the 3D view shows the resulting platform
+  motion live
+- **Hardware** - connect to the Bridge over serial, stream the current pose
+  to the servos as calibrated CMD_ACT targets, watch SRV_FB / PWR_MON
+  feedback; torque is released on disconnect and on window close
+
+### Headless runner
+
+```bash
+python -m pystuart.apps.headless ac --serial COM7
+# or, after pip install
+pystuart-headless csv recording.csv --serial COM7
 ```
 
 ### Controls

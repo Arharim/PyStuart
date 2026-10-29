@@ -111,6 +111,9 @@ stewart_sim_env/
 # mkdocs documentation
 /site
 
+# Local-only design docs
+/docs
+
 # mypy
 .mypy_cache/
 .dmypy.json
